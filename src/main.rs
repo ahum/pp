@@ -2,8 +2,24 @@ use atty::Stream;
 use colored::*;
 use serde_json::Value;
 use std::io::{self, BufRead};
+use structopt::StructOpt;
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "example", about = "An example of StructOpt usage.")]
+struct Opt {
+    #[structopt(short = "a", long = "label", default_value = "label")]
+    label: String,
+    #[structopt(short = "m", long = "message", default_value = "message")]
+    message: String,
+    #[structopt(short = "l", long = "level", default_value = "level")]
+    level: String,
+    // #[structopt(short = "f", long = "filter", default_value = vec![])]
+    // filter: Vec<String>,
+}
 
 fn main() {
+    let opt = Opt::from_args();
+    println!("{:?}", opt);
     if atty::is(Stream::Stdin) {
         //println!("I'm not");
     } else {
@@ -15,8 +31,8 @@ fn main() {
             Result::Ok(v) => {
                 println!(
                     "[{}] {}",
-                    v["level"].as_str().unwrap().blue(),
-                    v["message"].as_str().unwrap()
+                    v[opt.level].as_str().unwrap().blue(),
+                    v[opt.message].as_str().unwrap_or("")
                 );
             }
             _ => {
