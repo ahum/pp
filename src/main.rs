@@ -81,6 +81,19 @@ fn get_message(v: &Value) -> String {
         _ => String::from("NO-MESSAGE"),
     }
 }
+
+fn colorize(s: &str) -> ColoredString {
+    match s {
+        "debug" => s.blue(),
+        "warn" => s.yellow(),
+        "error" => s.red(),
+        "silly" => s.purple(),
+        "info" => s.white(),
+        "verbose" => s.green(),
+        _ => s.white(),
+    }
+}
+
 fn main() -> std::io::Result<()> {
     let opt = Opt::from_args();
     // println!("{:?}", opt);
@@ -94,14 +107,12 @@ fn main() -> std::io::Result<()> {
                 //print!("{}", line);
                 match serde_json::from_str::<Value>(&line) {
                     Result::Ok(v) => {
-                        // println!("{}", line);
                         let level = v[&opt.level].as_str().unwrap();
                         let label = v[&opt.label].as_str().unwrap_or("NO-LABEL");
 
-                        let msg = get_message(&v[&opt.message]);
-
                         if allow_level(level, &opt_level) {
-                            println!("[{}:{}] {}", level.blue(), label.red(), msg);
+                            let msg = get_message(&v[&opt.message]);
+                            println!("[{}:{}] {}", colorize(level), label.red(), msg);
                         }
                     }
                     _ => {
