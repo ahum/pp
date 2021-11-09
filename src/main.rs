@@ -82,15 +82,20 @@ fn get_message(v: &Value) -> String {
     }
 }
 
-fn colorize(s: &str) -> ColoredString {
-    match s {
-        "debug" => s.blue(),
-        "warn" => s.yellow(),
-        "error" => s.red(),
-        "silly" => s.purple(),
-        "info" => s.white(),
-        "verbose" => s.green(),
-        _ => s.white(),
+fn colorize(level: &str, txt: Option<&str>) -> ColoredString {
+    let t = match txt {
+        Some(s) => s,
+        _ => level,
+    };
+
+    match level {
+        "debug" => t.blue(),
+        "warn" => t.yellow(),
+        "error" => t.red(),
+        "silly" => t.purple(),
+        "info" => t.white(),
+        "verbose" => t.green(),
+        _ => t.white(),
     }
 }
 
@@ -100,7 +105,14 @@ fn main() -> std::io::Result<()> {
     let opt_level = opt.filter_level;
     loop {
         let mut line = String::new();
+        // let mut err_line = String::new();
 
+        // match io::stderr().(&mut err_line) {
+        //     Ok(0) | Err(_) => break,
+        //     Ok(_) => {
+        //         println!("err: {}", &err_line);
+        //     }
+        // }
         match io::stdin().read_line(&mut line) {
             Ok(0) | Err(_) => break,
             Ok(_) => {
@@ -112,7 +124,12 @@ fn main() -> std::io::Result<()> {
 
                         if allow_level(level, &opt_level) {
                             let msg = get_message(&v[&opt.message]);
-                            println!("[{}:{}] {}", colorize(level), label.red(), msg);
+                            println!(
+                                "[{}:{}] {}",
+                                colorize(level, None),
+                                colorize(level, Some(label)),
+                                msg
+                            );
                         }
                     }
                     _ => {
