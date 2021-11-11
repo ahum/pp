@@ -1,7 +1,11 @@
-use atty::Stream;
 use colored::*;
 use serde_json::Value;
-use std::io::{self, BufRead};
+use std::{
+    collections::{hash_map::DefaultHasher, HashMap},
+    convert::TryInto,
+    hash::{Hash, Hasher},
+    io::{self},
+};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -15,8 +19,12 @@ struct Opt {
     level: String,
     #[structopt(short = "fl", long = "filter_level", default_value = "silly")]
     filter_level: String,
-    // #[structopt(short = "f", long = "filter", default_value = vec![])]
+    // TODO: #[structopt(short = "f", long = "filter", default_value = vec![])]
     // filter: Vec<String>,
+    // TODO:
+    // format: Vec<String>,
+    // TODO:
+    // passthrough: boolean = false,
 }
 
 const LEVELS: [&str; 7] = ["silly", "debug", "verbose", "info", "warn", "error", "off"];
@@ -30,49 +38,6 @@ fn allow_level(requested: &str, limit: &String) -> bool {
     }
 }
 
-// fn main() {
-
-//   let mut input = String::new();
-
-//   loop {
-//       match io::stdin().read_line(&mut input) {
-//           Ok(n) => {
-//               println!("{} bytes read", n);
-//               println!("{}", input);
-//           }
-//           Err(error) => println!("error: {}", error),
-//       }
-//   }
-
-//     // let opt_level = opt.filter_level;
-//     // // let opt_level = opt.level.as_str();
-//     // if !atty::is(Stream::Stdin) {
-//     //     let stdin = io::stdin();
-//     //     let lines: Vec<String> = stdin.lock().lines().flatten().collect();
-//     //     let together = lines.join("\n");
-
-//     //     println!("together: {:?}", together);
-
-//     //     match serde_json::from_str::<Value>(&together) {
-//     //         Result::Ok(v) => {
-//     //             let level = v[&opt.level].as_str().unwrap();
-//     //             if allow_level(level, &opt_level) {
-//     //                 println!(
-//     //                     "[{}] {}",
-//     //                     level.blue(),
-//     //                     v[opt.message].as_str().unwrap_or("")
-//     //                 );
-//     //             }
-//     //         }
-//     //         _ => {
-//     //             // do nothing
-//     //         }
-//     //     }
-//     // } else {
-//     //     println!("??? what?")
-//     // }
-// }
-
 fn get_message(v: &Value) -> String {
     match v {
         Value::Object(m) => serde_json::to_string(v).unwrap(),
@@ -82,41 +47,54 @@ fn get_message(v: &Value) -> String {
     }
 }
 
-fn colorize(level: &str, txt: Option<&str>) -> ColoredString {
-    let t = match txt {
-        Some(s) => s,
-        _ => level,
-    };
-
+fn colorize_level(level: &str) -> ColoredString {
     match level {
-        "debug" => t.blue(),
-        "warn" => t.yellow(),
-        "error" => t.red(),
-        "silly" => t.purple(),
-        "info" => t.white(),
-        "verbose" => t.green(),
-        _ => t.white(),
+        "debug" => level.blue(),
+        "warn" => level.yellow(),
+        "error" => level.red(),
+        "silly" => level.purple(),
+        "info" => level.white(),
+        "verbose" => level.green(),
+        _ => level.white(),
     }
+}
+
+struct Rgb {
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
+fn colorize_label(label: &str, label_to_color: &mut HashMap<String, Rgb>) -> ColoredString {
+    let c: &mut Rgb = label_to_color
+        .entry(String::from(label))
+        .or_insert_with(|| {
+            let mut hasher = DefaultHasher::new();
+            label.hash(&mut hasher);
+            let done = hasher.finish();
+            let r: u8 = ((done & 0xFF0000) >> 16).try_into().unwrap();
+            let g: u8 = ((done & 0x00FF00) >> 8).try_into().unwrap();
+            let b: u8 = (done & 0x0000FF).try_into().unwrap();
+            Rgb { r, g, b }
+        });
+
+    label.color(Color::TrueColor {
+        r: c.r,
+        g: c.g,
+        b: c.b,
+    })
 }
 
 fn main() -> std::io::Result<()> {
     let opt = Opt::from_args();
-    // println!("{:?}", opt);
+    let mut label_to_color: HashMap<String, Rgb> = HashMap::new();
+
     let opt_level = opt.filter_level;
     loop {
         let mut line = String::new();
-        // let mut err_line = String::new();
-
-        // match io::stderr().(&mut err_line) {
-        //     Ok(0) | Err(_) => break,
-        //     Ok(_) => {
-        //         println!("err: {}", &err_line);
-        //     }
-        // }
         match io::stdin().read_line(&mut line) {
             Ok(0) | Err(_) => break,
             Ok(_) => {
-                //print!("{}", line);
                 match serde_json::from_str::<Value>(&line) {
                     Result::Ok(v) => {
                         let level = v[&opt.level].as_str().unwrap();
@@ -125,9 +103,9 @@ fn main() -> std::io::Result<()> {
                         if allow_level(level, &opt_level) {
                             let msg = get_message(&v[&opt.message]);
                             println!(
-                                "[{}:{}] {}",
-                                colorize(level, None),
-                                colorize(level, Some(label)),
+                                "[{}] {} | {}",
+                                colorize_level(level),
+                                colorize_label(label, &mut label_to_color),
                                 msg
                             );
                         }
