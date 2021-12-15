@@ -86,18 +86,23 @@ fn colorize_label(label: &str, label_to_color: &mut HashMap<String, Rgb>) -> Col
 }
 
 fn main() -> std::io::Result<()> {
+    println!("hi---");
     let opt = Opt::from_args();
     let mut label_to_color: HashMap<String, Rgb> = HashMap::new();
 
     let opt_level = opt.filter_level;
     loop {
         let mut line = String::new();
+
+        // println!("line: {:?}", line);
         match io::stdin().read_line(&mut line) {
             Ok(0) | Err(_) => break,
             Ok(_) => {
+                println!("line: {:?}", &line);
                 match serde_json::from_str::<Value>(&line) {
                     Result::Ok(v) => {
-                        let level = v[&opt.level].as_str().unwrap();
+                        println!("v: {:?}", &v);
+                        let level = v[&opt.level].as_str().unwrap_or("NO-LEVEL");
                         let label = v[&opt.label].as_str().unwrap_or("NO-LABEL");
 
                         if allow_level(level, &opt_level) {
