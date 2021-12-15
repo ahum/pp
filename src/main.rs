@@ -98,12 +98,12 @@ fn main() -> std::io::Result<()> {
         match io::stdin().read_line(&mut line) {
             Ok(0) | Err(_) => break,
             Ok(_) => {
-                println!("line: {:?}", &line);
+                //println!("line: {:?}", &line);
                 match serde_json::from_str::<Value>(&line) {
                     Result::Ok(v) => {
-                        println!("v: {:?}", &v);
-                        let level = v[&opt.level].as_str().unwrap_or("NO-LEVEL");
-                        let label = v[&opt.label].as_str().unwrap_or("NO-LABEL");
+                        //println!("v: {:?}", &v);
+                        let level = v[&opt.level].as_str().unwrap_or("");
+                        let label = v[&opt.label].as_str().unwrap_or("");
 
                         if allow_level(level, &opt_level) {
                             let msg = get_message(&v[&opt.message]);

@@ -18,3 +18,10 @@ You'll need to send stderr into stdout:
 ```shell
 your_log_command 2>&1 | pp
 ```
+
+
+## run demo
+
+```shell
+./demo.sh | cargo run
+```
