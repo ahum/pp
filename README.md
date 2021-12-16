@@ -25,3 +25,5 @@ your_log_command 2>&1 | pp
 ```shell
 ./demo.sh | cargo run
 ```
+
+

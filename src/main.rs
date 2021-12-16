@@ -29,21 +29,25 @@ struct Opt {
 
 const LEVELS: [&str; 7] = ["silly", "debug", "verbose", "info", "warn", "error", "off"];
 
-fn allow_level(requested: &str, limit: &String) -> bool {
-    let requested_index = LEVELS.iter().position(|&x| x == requested);
-    let limit_index = LEVELS.iter().position(|&x| x == limit);
-    match (requested_index, limit_index) {
-        (Some(r), Some(li)) => r >= li,
-        _ => false,
+fn allow_level(requested: Option<&str>, limit: &String) -> bool {
+    match requested {
+        None => true,
+        Some(s) => {
+            let requested_index = LEVELS.iter().position(|&x| x == s);
+            let limit_index = LEVELS.iter().position(|&x| x == limit);
+            match (requested_index, limit_index) {
+                (Some(r), Some(li)) => r >= li,
+                _ => false,
+            }
+        }
     }
 }
 
-fn get_message(v: &Value) -> String {
+fn get_message(v: &Value) -> Option<String> {
     match v {
-        Value::Object(m) => serde_json::to_string(v).unwrap(),
-        Value::String(s) => s.clone(),
-        //v.as_str().unwrap(),
-        _ => String::from("NO-MESSAGE"),
+        Value::Object(m) => serde_json::to_string(v).ok(),
+        Value::String(s) => Some(s.clone()),
+        _ => None, //String::from("NO-MESSAGE"),
     }
 }
 
@@ -86,7 +90,6 @@ fn colorize_label(label: &str, label_to_color: &mut HashMap<String, Rgb>) -> Col
 }
 
 fn main() -> std::io::Result<()> {
-    println!("hi---");
     let opt = Opt::from_args();
     let mut label_to_color: HashMap<String, Rgb> = HashMap::new();
 
@@ -102,17 +105,25 @@ fn main() -> std::io::Result<()> {
                 match serde_json::from_str::<Value>(&line) {
                     Result::Ok(v) => {
                         //println!("v: {:?}", &v);
-                        let level = v[&opt.level].as_str().unwrap_or("");
-                        let label = v[&opt.label].as_str().unwrap_or("");
 
-                        if allow_level(level, &opt_level) {
+                        if allow_level(v[&opt.level].as_str(), &opt_level) {
+                            let level_formatted = v[&opt.level]
+                                .as_str()
+                                .map(|s| format!("[{}]", colorize_level(s)));
+                            // .unwrap_or("");
+                            let label_formatted = v[&opt.label]
+                                .as_str()
+                                .map(|s| format!("{} |", colorize_label(s, &mut label_to_color)));
                             let msg = get_message(&v[&opt.message]);
-                            println!(
-                                "[{}] {} | {}",
-                                colorize_level(level),
-                                colorize_label(label, &mut label_to_color),
-                                msg
+                            let out = format!(
+                                "{} {} {}",
+                                level_formatted.unwrap_or(String::from("")),
+                                label_formatted.unwrap_or(String::from("")),
+                                msg.unwrap_or(
+                                    serde_json::to_string(&v).ok().unwrap_or(String::from(""))
+                                )
                             );
+                            println!("{}", out.trim());
                         }
                     }
                     _ => {
